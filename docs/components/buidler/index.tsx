@@ -14,7 +14,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "../ui/card";
-import SignIn from "./sign-in";
+import { SignIn } from "./sign-in";
 import { SignUp } from "./sign-up";
 import { AuthTabs } from "./tabs";
 import { Label } from "../ui/label";
@@ -23,6 +23,10 @@ import { Separator } from "../ui/separator";
 import { useState } from "react";
 import CodeTabs from "./code-tabs";
 import { cn } from "@/lib/utils";
+import { authOptions } from "@/lib/auth-options";
+import { useCodeComponent } from "@/lib/store/code";
+import { useComponents, useUrl } from "@/lib/store/components";
+import { RenderedComponent } from "./rendered";
 
 const frameworks = [
 	{
@@ -423,6 +427,8 @@ export function Builder() {
 	};
 
 	const [currentStep, setCurrentStep] = useState(0);
+  const {enabledComp , updateEnabledComponent} = useComponents()
+  const { updateUrl, url } = useUrl();
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
@@ -448,22 +454,8 @@ export function Builder() {
 
 				<div className="flex gap-4 md:gap-12 flex-col md:flex-row items-center md:items-start">
 					<div className="w-4/12">
-						<AuthTabs
-							tabs={[
-								{
-									title: "Sign In",
-									value: "sign-in",
-									content: <SignIn />,
-								},
-								{
-									title: "Sign Up",
-									value: "sign-up",
-									content: <SignUp />,
-								},
-							]}
-						/>
-					</div>
-
+					<RenderedComponent />
+									</div>
 					<div className="flex-grow w-5/12 h-[530px]">
 						{currentStep === 0 ? (
 							<Card className="rounded-none flex-grow mt-10 h-full">
@@ -480,87 +472,174 @@ export function Builder() {
 											<div className="flex items-center gap-2">
 												<Label>Enabled</Label>
 											</div>
-											<Switch />
+											<Switch
+											onCheckedChange={(e) => {
+                                          updateEnabledComponent({
+                                            toogledComp: {
+                                              credentials: {
+                                                ...enabledComp["credentials"],
+                                                emailAndPassword: e,
+                                              },
+                                            },
+                                          });
+                                        }}
+										 checked={enabledComp.credentials.emailAndPassword} />
 										</div>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<Label>Remember Me</Label>
-											</div>
-											<Switch />
-										</div>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<Label>Forget Password</Label>
-											</div>
-											<Switch />
-										</div>
-									</div>
+						    {Object.keys(enabledComp["additionals"]).map(
+                                (addition, indx) => {
+                                  const exists =
+                                    addition in authOptions["additionals"];
+                                  const enabledCredentials = Object.entries(
+                                    enabledComp.credentials,
+                                  )
+                                    .filter((curr) => curr[1])
+                                    .map((curr) => curr[0]);
+                                  const fullDeps =
+                                    enabledComp.additionals[addition][
+                                      "dependencies"
+                                    ];
+                                  const disabled = enabledCredentials.filter(
+                                    (curr) => fullDeps?.includes(curr),
+                                  );
+                                  console.log({ addition, exists });
+                                  if (exists) {
+                                    return (
+                                      <div
+                                        key={indx}
+                                        className="flex items-center justify-between"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {
+                                            authOptions["additionals"][addition]
+                                              .icon
+                                          }
+                                          <span className="text-sm">
+                                            {
+                                              authOptions["additionals"][
+                                                addition as string
+                                              ].name
+                                            }
+                                          </span>
+                                        </div>
+                                        <Switch
+                                          // disabled={!disabled.length}
+                                          onCheckedChange={(e) => {
+                                            updateEnabledComponent({
+                                              toogledComp: {
+                                                additionals: {
+                                                  ...enabledComp["additionals"],
+                                                  [addition]: {
+                                                    ...enabledComp[
+                                                      "additionals"
+                                                    ][addition],
+                                                    visiblity: e,
+                                                    routing: false,
+                                                  },
+                                                },
+                                              },
+                                            });
+                                          }}
+                                          checked={
+                                            enabledComp["additionals"][addition]
+                                              .visiblity
+                                          }
+                                        />
+                                      </div>
+                                    );
+                                  }
+                                },
+                              )}
+																		</div>
 									<div className="flex flex-col gap-2 mt-4">
 										<div>
 											<Label>Social Providers</Label>
 										</div>
 										<Separator />
-										{Object.entries(socialProviders).map(
-											([provider, { Icon }]) => (
-												<div
-													className="flex items-center justify-between"
-													key={provider}
-												>
-													<div className="flex items-center gap-2">
-														<Icon />
-														<Label>
-															{provider.charAt(0).toUpperCase() +
-																provider.slice(1)}
-														</Label>
-													</div>
-													<Switch />
-												</div>
-											),
-										)}
+									 {Object.keys(enabledComp["socials"]).map(
+                                (social, indx) => {
+                                  return (
+                                    <div
+                                      key={indx}
+                                      className="flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {
+                                          authOptions["socialProviders"][
+                                            social
+                                          ]["icon"]
+                                        }
+                                        <span className="text-sm">
+                                          {
+                                            authOptions["socialProviders"][
+                                              social as string
+                                            ].name
+                                          }
+                                        </span>
+                                      </div>
+                                      <Switch
+                                        onCheckedChange={(e) => {
+                                          updateEnabledComponent({
+                                            toogledComp: {
+                                              socials: {
+                                                ...enabledComp["socials"],
+                                                [social]: e,
+                                              },
+                                            },
+                                          });
+                                        }}
+                                        checked={enabledComp["socials"][social]}
+                                      />
+                                    </div>
+                                  );
+                                },
+                              )}
 									</div>
 									<div className="flex flex-col gap-2 mt-4">
 										<div>
 											<Label>Plugins</Label>
 										</div>
 										<Separator />
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													width="1em"
-													height="1em"
-													viewBox="0 0 24 24"
-												>
-													<path
-														fill="currentColor"
-														d="M5 20q-.825 0-1.412-.587T3 18v-.8q0-.85.438-1.562T4.6 14.55q1.55-.775 3.15-1.162T11 13q.35 0 .7.013t.7.062q.275.025.437.213t.163.462q.05 1.175.575 2.213t1.4 1.762q.175.125.275.313t.1.412V19q0 .425-.288.713T14.35 20zm6-8q-1.65 0-2.825-1.175T7 8t1.175-2.825T11 4t2.825 1.175T15 8t-1.175 2.825T11 12m7.5 2q.425 0 .713-.288T19.5 13t-.288-.712T18.5 12t-.712.288T17.5 13t.288.713t.712.287m.15 8.65l-1-1q-.05-.05-.15-.35v-4.45q-1.1-.325-1.8-1.237T15 13.5q0-1.45 1.025-2.475T18.5 10t2.475 1.025T22 13.5q0 1.125-.638 2t-1.612 1.25l.9.9q.15.15.15.35t-.15.35l-.8.8q-.15.15-.15.35t.15.35l.8.8q.15.15.15.35t-.15.35l-1.3 1.3q-.15.15-.35.15t-.35-.15"
-													></path>
-												</svg>
-												<Label>Passkey</Label>
-											</div>
-											<Switch />
-										</div>
 
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													width="1em"
-													height="1em"
-													viewBox="0 0 24 24"
-												>
-													<g fill="none">
-														<path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"></path>
-														<path
-															fill="currentColor"
-															d="M17.5 3a4.5 4.5 0 0 1 4.495 4.288L22 7.5V15a2 2 0 0 1-1.85 1.995L20 17h-3v3a1 1 0 0 1-1.993.117L15 20v-3H4a2 2 0 0 1-1.995-1.85L2 15V7.5a4.5 4.5 0 0 1 4.288-4.495L6.5 3zm-11 2A2.5 2.5 0 0 0 4 7.5V15h5V7.5A2.5 2.5 0 0 0 6.5 5M7 8a1 1 0 0 1 .117 1.993L7 10H6a1 1 0 0 1-.117-1.993L6 8z"
-														></path>
-													</g>
-												</svg>
-												<Label>Magic Link</Label>
-											</div>
-											<Switch />
-										</div>
+										{Object.keys(enabledComp["plugins"]).map(
+                                (plugin, indx) => {
+                                  return (
+                                    <div
+                                      key={indx}
+                                      className="flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {
+                                          authOptions["plugins"][
+                                           plugin
+                                          ]["icon"]
+                                        }
+                                        <span className="text-sm">
+                                          {
+                                            authOptions["plugins"][
+                                              plugin as string
+                                            ].name
+                                          }
+                                        </span>
+                                      </div>
+                                      <Switch
+                                        onCheckedChange={(e) => {
+                                          updateEnabledComponent({
+                                            toogledComp: {
+                                              plugins: {
+                                                ...enabledComp["plugins"],
+                                                [plugin]: e,
+                                              },
+                                            },
+                                          });
+                                        }}
+                                        checked={enabledComp["plugins"][plugin]}
+                                      />
+                                    </div>
+                                  );
+                                },
+                              )}
+
+
 									</div>
 								</CardContent>
 								<CardFooter>
